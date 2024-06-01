@@ -2,37 +2,28 @@
 
 mod Error;
 
+use article_scraper::ArticleScraper;
 use clap::{arg, command};
-use reqwest::blocking::{get};
+use reqwest::Client;
+use tokio;
+use url::Url;
 
 
 use Error::AppError;
 
-fn main() -> Result<(), AppError> {
+#[tokio::main]
+async fn main() -> Result<(), AppError> {
     let matches = command!()
         .arg(arg!([url] "The URL to a website to read out").required(true))
         .get_matches();
 
-    // Retrieve the URL argument
-
     let url:&String = matches.get_one::<String>("url").ok_or(AppError::Param("missing url to retrieve".to_string()))?;
-
-    println!("requesting website content from {}", url);
-
-    let raw_content = retrieve_site_content(url).map_err(|e| AppError::Reqwest(e))?;
-
-    println!("{}",raw_content);
+    let scraper = ArticleScraper::new(None).await;
+    let parsedUrl = Url::parse(url).map_err(|e| AppError::UrlParseError(e))?;
+    let client = Client::new();
+    let article = scraper.parse(&parsedUrl,false,&client,None).await.map_err(|e| AppError::ScrapeError(e.to_string()))?;
+    println!("{}",article.html.unwrap());
     Ok(())
 }
-
-fn retrieve_site_content(url: &str) -> Result<String,reqwest::Error> {
-
-    let mut moddedUrl:String = url.to_string();
-    if !url.to_uppercase().starts_with("HTTP://") && !url.to_uppercase().starts_with("HTTPS://"){
-        moddedUrl = "https://".to_string() + url;
-    }
-    return get(moddedUrl)?.text()
-}
-
 
 
