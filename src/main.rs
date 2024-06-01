@@ -4,7 +4,10 @@ mod Error;
 
 use article_scraper::ArticleScraper;
 use clap::{arg, command};
+use html2text::from_read;
+use html_escape::decode_html_entities;
 use reqwest::Client;
+use termsize::Size;
 use tokio;
 use url::Url;
 
@@ -12,7 +15,8 @@ use url::Url;
 use Error::AppError;
 
 #[tokio::main]
-async fn main() -> Result<(), AppError> {
+async fn main() -> Result<(), AppError>
+{
     let matches = command!()
         .arg(arg!([url] "The URL to a website to read out").required(true))
         .get_matches();
@@ -22,8 +26,21 @@ async fn main() -> Result<(), AppError> {
     let parsedUrl = Url::parse(url).map_err(|e| AppError::UrlParseError(e))?;
     let client = Client::new();
     let article = scraper.parse(&parsedUrl,false,&client,None).await.map_err(|e| AppError::ScrapeError(e.to_string()))?;
-    println!("{}",article.html.unwrap());
+    if let Some(html) = article.html
+    {
+        println!("{}\n", url);
+        println!("{}", article.title.unwrap_or_else(|| "No Title".to_string()));
+
+        let readable_text = from_read(
+                                      decode_html_entities(&html).as_bytes(),
+                                      termsize::get().
+                                          unwrap_or(Size { cols: 100, rows: 0 }).
+                                          cols as usize);
+        println!("{}", readable_text);
+    }
+    else
+    {
+        println!("There is nothing readable at: {}", url);
+    }
     Ok(())
 }
-
-
