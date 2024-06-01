@@ -3,8 +3,7 @@
 mod Error;
 
 use clap::{arg, command};
-use std::io::{self};
-use reqwest::get;
+use reqwest::blocking::{get};
 
 
 use Error::AppError;
@@ -32,7 +31,7 @@ fn retrieve_site_content(url: &str) -> Result<String,reqwest::Error> {
     if !url.to_uppercase().starts_with("HTTP://") && !url.to_uppercase().starts_with("HTTPS://"){
         moddedUrl = "https://".to_string() + url;
     }
-    return reqwest::blocking::get(moddedUrl)?.text()
+    return get(moddedUrl)?.text()
 }
 
 
